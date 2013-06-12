@@ -35,10 +35,12 @@ from python_msg_conversions import pointclouds
 
 class CloPeMaManipulator(RobInt):  
 
+
     lastImageIndex = 0
     graspPoints = None
     pcMap = None # point cloud map. Contain registred point cloud for measuring
-
+    pc_frame_id = ''
+    
     x_border = 0
     y_border = 0
 
@@ -58,7 +60,7 @@ class CloPeMaManipulator(RobInt):
         line_b = (map(lambda a:a * 0.5, diff_b)) + target_point_real_b
         
         sm = smach.Sequence(outcomes=['succeeded', 'preempted', 'aborted'], connector_outcome='succeeded')
-        input_frame = '/xtion2_rgb_optical_frame'
+        input_frame = self.pc_frame_id
         input_g1 = PyKDL.Frame()
         input_g2 = PyKDL.Frame()
         input_p1 = PyKDL.Frame()
@@ -93,8 +95,9 @@ class CloPeMaManipulator(RobInt):
         sm.userdata.rotation_angle_2 = 0
         table_offset = 0.075
         
+        """
         br = tf.TransformBroadcaster()
-        rospy.sleep(2.0)
+        rospy.sleep(1.0)
         tmp = posemath.fromMsg(sm.userdata.g1.pose)
         br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'G1' , sm.userdata.g1.header.frame_id)
         tmp = posemath.fromMsg(sm.userdata.g2.pose)
@@ -103,6 +106,7 @@ class CloPeMaManipulator(RobInt):
         br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'P1' , sm.userdata.g1.header.frame_id)
         tmp = posemath.fromMsg(sm.userdata.p2.pose)
         br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'P2' , sm.userdata.g1.header.frame_id)
+        """
         
         raw_input("Enter to continue")
         """
@@ -123,7 +127,7 @@ class CloPeMaManipulator(RobInt):
         self.lastImageIndex = index
         logging.info("Get image - waiting for msg")
         pcData = rospy.wait_for_message("/xtion2/depth_registered/points", PointCloud2)
-        
+        self.pc_frame_id = pcData.header.frame_id
         #convert it to format accepted by openCV
         logging.info("Get image - converting")
         arr = pointclouds.pointcloud2_to_array(pcData, split_rgb=self.has_rgb(pcData))
@@ -187,8 +191,8 @@ class CloPeMaManipulator(RobInt):
             
         xyv.sort(key=lambda i:(i[0] ** 2 + i[1] ** 2))
         for v in xyv:
-            p = (img_point[0] + v[0],
-                 img_point[1] + v[1])
+            p = (img_point[1] + v[1],
+                 img_point[0] + v[0])
             pr = self.pcMap[p]
             if not math.isnan(pr[0]):
                 if not math.isnan(pr[1]):
