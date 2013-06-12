@@ -134,11 +134,11 @@ class CloPeMaManipulator(RobInt):
         
         takenImage = None
         self.lastImageIndex = index
-        logging.info("Before wait")
+        logging.info("Get image - waiting for msg")
         pcData = rospy.wait_for_message("/xtion2/depth_registered/points", PointCloud2)
         
         #convert it to format accepted by openCV
-        logging.info("Before conversion")
+        logging.info("Get image - converting")
         arr = pointclouds.pointcloud2_to_array(pcData, split_rgb=self.has_rgb(pcData))
 
         if arr == None:
@@ -158,60 +158,15 @@ class CloPeMaManipulator(RobInt):
             rgb[..., 1] = arr['g']
             rgb[..., 2] = arr['r']
             
-            
-        logging.info("Before crop")
-        image = cv.fromarray(rgb)
-        roi = (30, 30, 550, 370) # x,y(from the top of the image),width,height
-        cropped = cv.GetSubRect(image, roi)
-        takenImage = cv.CreateImage(roi[2:], cv.IPL_DEPTH_8U, 3);
-        cv.Copy(cropped, takenImage)
-            
-            
-        #""" Show image from Kinect
+        takenImage = cv.fromarray(rgb)
+        
         cv.NamedWindow("Image from Kinect")
         cv.ShowImage("Image from Kinect", takenImage)
         cv.WaitKey()
         cv.DestroyWindow("Image from Kinect")
-        #"""
 
         logging.debug("TAKE_PICTURE - End")
         return takenImage
-        
-    ##  Load an image grabed by a camera.
-    #
-    #   Images are now stored on a local HDD
-    #   @param index The index of image to be loaded
-    #   @return The image loaded from a file        
-    """def getImageOfObsObject(self, index):
-        logging.debug("TAKE_PICTURE - Begin")
-        takenImage = None
-        self.lastImageIndex = index
-        
-        imData = rospy.wait_for_message("/xtion1/rgb/image_color", Image)
-        
-        #convert it to format accepted by openCV
-        try:
-            bridge = CvBridge()
-            image = bridge.imgmsg_to_cv(imData,"bgr8")
-        except CvBridgeError, e:
-            show_message("Image conversion error: %s."%e, MsgTypes.exception)
-            return None
-            
-        roi = (30,30,550,370) # x,y(from the top of the image),width,height
-        cropped = cv.GetSubRect(image,roi)
-        takenImage = cv.CreateImage(roi[2:],cv.IPL_DEPTH_8U,3);
-        cv.Copy(cropped,takenImage)
-            
-            
-        #Show image from Kinect
-        #cv.NamedWindow("Image from Kinect")
-        #cv.ShowImage("Image from Kinect",takenImage)
-        #cv.WaitKey()
-        #cv.DestroyWindow("Image from Kinect")
-
-        logging.debug("TAKE_PICTURE - End")
-        return takenImage
-    """
         
     ## Compute and return homography between side and top view
     #
