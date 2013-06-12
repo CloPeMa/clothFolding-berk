@@ -46,57 +46,32 @@ class CloPeMaManipulator(RobInt):
         self.graspPoints = liftPoints
 
     def place(self, targPoints):
-        target_point_real_a = self.pcMap[targPoints[0]]
-        target_point_real_b = self.pcMap[targPoints[1]]
-        grasp_point_real_a = self.pcMap[self.graspPoints[0]]
-        grasp_point_real_b = self.pcMap[self.graspPoints[1]]
+        N = 10
+        target_point_real_a = self.map_to_real(targPoints[0], N)
+        target_point_real_b = self.map_to_real(targPoints[1], N)
+        grasp_point_real_a = self.map_to_real(self.graspPoints[0], N)
+        grasp_point_real_b = self.map_to_real(self.graspPoints[1], N)
         
-        print self.map_to_real(targPoints[0], 10)
-        print self.map_to_real(targPoints[1], 10)
-        print self.map_to_real(self.graspPoints[0], 10)
-        print self.map_to_real(self.graspPoints[1], 10)
-        print "-------"
-        
-        print target_point_real_a
-        print target_point_real_b
-        print grasp_point_real_a
-        print grasp_point_real_b
-        midP = (map(lambda a:a * 0.5, Vector2D.pt_diff(self.graspPoints[0], targPoints[0])))
-        firstLnPt = [self.graspPoints[0][0] + midP[0], self.graspPoints[0][1] + midP[1]]
-        midP = (map(lambda a:a * 0.5, Vector2D.pt_diff(self.graspPoints[1], targPoints[1])))
-        secondLnPt = [self.graspPoints[1][0] + midP[0], self.graspPoints[1][1] + midP[1]]
-        realflp = self.pcMap[firstLnPt[0] + self.x_border, firstLnPt[1] + self.y_border]  #first line point in xtion1_link base
-        realslp = self.pcMap[secondLnPt[0] + self.x_border, secondLnPt[1] + self.y_border] #second line point in xtion1_link base    
-        
-        realTarP1 = self.pcMap[targPoints[0][0] + self.x_border, targPoints[0][1] + self.y_border]
-        realTarP2 = self.pcMap[targPoints[1][0] + self.x_border, targPoints[1][1] + self.y_border]
-        
-        # check none values and reaplce them by nearest neighbour
-        search_box_x_half_size = 100;
-        search_box_y_half_size = 100;
-        realTarP1 = self.checkAndReplaceNaN(realTarP1, targPoints[0][0] + self.x_border, search_box_x_half_size, targPoints[0][1] + self.y_border, search_box_y_half_size)
-        realTarP2 = self.checkAndReplaceNaN(realTarP2, targPoints[1][0] + self.x_border, search_box_x_half_size, targPoints[1][1] + self.y_border, search_box_y_half_size)
-        realflp = self.checkAndReplaceNaN(realflp, firstLnPt[0] + self.x_border, search_box_x_half_size, firstLnPt[0] + self.y_border, search_box_y_half_size)
-        realslp = self.checkAndReplaceNaN(realslp, secondLnPt[0] + self.x_border, search_box_x_half_size, secondLnPt[1] + self.y_border, search_box_y_half_size)
+        diff_a = grasp_point_real_a - target_point_real_a
+        line_a = (map(lambda a:a * 0.5, diff_a)) + target_point_real_a
+        diff_b = grasp_point_real_b - target_point_real_b
+        line_b = (map(lambda a:a * 0.5, diff_b)) + target_point_real_b
         
         sm = smach.Sequence(outcomes=['succeeded', 'preempted', 'aborted'], connector_outcome='succeeded')
-        input_frame = '/xtion1_rgb_optical_frame'
+        input_frame = '/xtion2_rgb_optical_frame'
         input_g1 = PyKDL.Frame()
         input_g2 = PyKDL.Frame()
         input_p1 = PyKDL.Frame()
         input_p2 = PyKDL.Frame()
 
-        print realTarP1
-        print realTarP2
-        print realflp
-        print realslp
-        input_g1.p = PyKDL.Vector(realTarP1[0], realTarP1[1], realTarP1[2])
+        gp1 = grasp_point_real_a
+        gp2 = grasp_point_real_b
+        input_g1.p = PyKDL.Vector(gp1[0], gp1[1], gp1[2])
         input_g1.M = PyKDL.Rotation().RPY(math.pi / 2, 0, math.pi / 5)
-        input_g2.p = PyKDL.Vector(realTarP2[0], realTarP2[1], realTarP2[2])
+        input_g2.p = PyKDL.Vector(gp2[0], gp2[1], gp2[2])
         input_g2.M = PyKDL.Rotation().RPY(math.pi / 2, 0, -math.pi / 5)
-        input_p1.p = PyKDL.Vector(realflp[0], realflp[1], realflp[2])
-        input_p2.p = PyKDL.Vector(realslp[0], realslp[1], realslp[2])
-
+        input_p1.p = PyKDL.Vector(line_a[0], line_a[1], line_a[2])
+        input_p2.p = PyKDL.Vector(line_b[0], line_b[1], line_b[2])
 
         tmp_pose = PoseStamped()
         tmp_pose.header.frame_id = input_frame
@@ -118,14 +93,18 @@ class CloPeMaManipulator(RobInt):
         sm.userdata.rotation_angle_2 = 0
         table_offset = 0.075
         
-        
-        
-        
         br = tf.TransformBroadcaster()
-        rospy.sleep(1.0)
-        tmp = posemath.fromMsg(sm.userdata.g1)
-        br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'G11' , ud.g1.header.frame_id)
+        rospy.sleep(2.0)
+        tmp = posemath.fromMsg(sm.userdata.g1.pose)
+        br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'G1' , sm.userdata.g1.header.frame_id)
+        tmp = posemath.fromMsg(sm.userdata.g2.pose)
+        br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'G2' , sm.userdata.g1.header.frame_id)
+        tmp = posemath.fromMsg(sm.userdata.p1.pose)
+        br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'P1' , sm.userdata.g1.header.frame_id)
+        tmp = posemath.fromMsg(sm.userdata.p2.pose)
+        br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'P2' , sm.userdata.g1.header.frame_id)
         
+        raw_input("Enter to continue")
         """
         sm_go_home = gensm_plan_vis_exec(PlanToHomeState(), output_keys=['trajectory']);
         with sm:
