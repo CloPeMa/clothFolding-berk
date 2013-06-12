@@ -18,6 +18,7 @@ import cv
 import logging
 import sys
 import numpy as np
+from sensor_msgs.msg import Image
 
 # HumanManipulator class represent robotic manipualtor simulated by human being.
       
@@ -101,7 +102,7 @@ class HumanManipulator(RobInt):
 
         #""" take a picture from file
         logging.debug("TAKE_PICTURE - Picture is from a file.")
-        path = "/media/Data/clothImages/towel/imT_%02d.png" % index
+        path = "/home/petrivl3/sindljan_data/clothImages/towel/imT_%02d.png" % index
         #path = "/media/Data/clothImages/tShirt/im_%02d.png" % index
         
         try:

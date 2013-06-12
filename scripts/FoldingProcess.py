@@ -24,13 +24,14 @@ import numpy as np
 import tf
 import logging
 from HumanManipulator import HumanManipulator
+from CloPeMaManipulator import CloPeMaManipulator
 from clothing_models import Models
 from shape_window.ShapeWindow import *
 from shape_window import ShapeWindowUtils
 from shape_window import Geometry2D
 from visual_feedback_utils import Vector2D, thresholding, shape_fitting
 from sensor_msgs.msg import Image
-from conture_model_folding.srv import *
+from contour_model_folding.srv import *
 from cv_bridge import CvBridge, CvBridgeError
 from datetime import datetime
 
@@ -109,10 +110,11 @@ class FoldMaker:
 ## End of Support classes ----------------------------------------------    
 
 def main(args):
+    rospy.init_node("folding_process")
     init()
     imgStartIndex = 1
     # Create instance of used robotic device
-    robDev = HumanManipulator()
+    robDev = CloPeMaManipulator()
     #take an initial image from camera
     img = robDev.getImageOfObsObject(imgStartIndex)
     #compute a homography
@@ -195,7 +197,8 @@ def unwrap_image(image, transformation, sc_correction = False):
     
     # do the transformation
     unw_img = cv.CreateImage((640,480),cv.IPL_DEPTH_8U,3)
-    cv.WarpPerspective(image,unw_img,H, cv.CV_INTER_LINEAR+cv.CV_WARP_FILL_OUTLIERS+cv.CV_WARP_INVERSE_MAP, (0,0,0,0)) # pixels that are out of the image are set to black
+    #cv.WarpPerspective(image,unw_img,H, cv.CV_INTER_LINEAR+cv.CV_WARP_FILL_OUTLIERS+cv.CV_WARP_INVERSE_MAP, (0,0,0,0)) # pixels that are out of the image are set to black
+    cv.WarpPerspective(image,unw_img,H, cv.CV_INTER_LINEAR+cv.CV_WARP_FILL_OUTLIERS+cv.CV_WARP_INVERSE_MAP, (255,255,255,0)) # pixels that are out of the image are set to white
     return unw_img
    
 ## Execute fold according to the fold line
@@ -287,6 +290,9 @@ def get_grasp_points(model,foldedModel,foldLine):
             dist = point_line_distance(pt,foldLine)
             show_message( "Distant between point and fold line = " + str(dist) + " line = " + str(foldLine) + " point = " + str(pt), MsgTypes.debug)
             if(dist > fmd):
+                if(fmd != None):
+                    smd = fmd
+                    smdp = fmdp                    
                 fmd = dist
                 fmdp = pt
             elif(dist > smd):
@@ -453,7 +459,7 @@ def create_folded_model(_model, _image, _foldLine):
 def fit_model_to_image(model,image,iteration):
     show_message("FIT_MODEL_TO_IMAGE - begin", MsgTypes.debug)
     # initialization
-    background = thresholding.GREEN_BG
+    background = thresholding.WHITE_BG
     silent = False # true = silent, false = verbose
     show_graphics = True
     num_iters = 100 # towel 
@@ -475,6 +481,7 @@ def fit_model_to_image(model,image,iteration):
     image_out = cv.CloneImage(image)
     #Use the thresholding module to get the contour out
     shape_contour = thresholding.get_contour(image,bg_mode=background,filter_pr2=False,crop_rect=None)
+    
     #""" Show object contur
     cv.NamedWindow("Shape contocur of the observed object")
     img = cv.CloneImage(image)
@@ -483,7 +490,7 @@ def fit_model_to_image(model,image,iteration):
     cv.WaitKey()
     cv.DestroyWindow("Shape contour of the observed object")
     #"""
-    
+
     #Use the shaper fitter module to fit the model to image
     fitter = shape_fitting.ShapeFitter(     ORIENT_OPT=orient_opt,  SYMM_OPT=symm_opt,   
                                             ASYMM_OPT=asymm_opt,    FINE_TUNE=fine_tuning_opt,
@@ -543,9 +550,10 @@ def get_initial_model():
     modelPath = ""
     #unpicle model from file
     if(TYPE == ASYMM):
-        modelPath = "/media/Data/models/im_towel.pickle"
+		
+        modelPath = "/home/petrivl3/sindljan_data/models/im_towel.pickle"
     elif(TYPE == TEE_SKEL):
-        modelPath = "/media/Data/models/im_tShirt.pickle"
+        modelPath = "/home/petrivl3/sindljan_data/models/im_tShirt.pickle"
     else:
         show_message("Unknown model type.",MsgTypes.exception)
         sys.exit()
