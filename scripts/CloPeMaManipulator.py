@@ -126,12 +126,9 @@ class CloPeMaManipulator(RobInt):
 
     ##  Load an image grabed by a camera.
     #
-    #   Images are now stored on a local HDD
     #   @param index The index of image to be loaded
     #   @return The image loaded from a file        
     def getImageOfObsObject(self, index):
-        logging.debug("TAKE_PICTURE - Begin")
-        
         takenImage = None
         self.lastImageIndex = index
         logging.info("Get image - waiting for msg")
@@ -160,12 +157,7 @@ class CloPeMaManipulator(RobInt):
             
         takenImage = cv.fromarray(rgb)
         
-        cv.NamedWindow("Image from Kinect")
-        cv.ShowImage("Image from Kinect", takenImage)
-        cv.WaitKey()
-        cv.DestroyWindow("Image from Kinect")
-
-        logging.debug("TAKE_PICTURE - End")
+        logging.debug("Get image - completed")
         return takenImage
         
     ## Compute and return homography between side and top view
