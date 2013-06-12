@@ -11,6 +11,7 @@
   <depend package="clothing_models"/>
   <depend package="visual_feedback_utils"/>
   <depend package="shape_window"/>
+  <depend package="clopema_smach"/>
 
 </package>
 
