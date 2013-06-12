@@ -33,23 +33,34 @@ from smach import State
 from sensor_msgs.msg        import PointCloud2, PointField
 from python_msg_conversions import pointclouds
 
-
-# HumanManipulator class represent robotic manipualtor simulated by human being.
-      
 class CloPeMaManipulator(RobInt):  
 
     lastImageIndex = 0
     graspPoints = None
     pcMap = None # point cloud map. Contain registred point cloud for measuring
-    
-    x_border = 30
-    y_border = 30
-      
+
+    x_border = 0
+    y_border = 0
+
     def liftUp(self, liftPoints):
         self.graspPoints = liftPoints
-        #raw_input("Hit key to continue (liftUp)")
-                    
+
     def place(self, targPoints):
+        target_point_real_a = self.pcMap[targPoints[0]]
+        target_point_real_b = self.pcMap[targPoints[1]]
+        grasp_point_real_a = self.pcMap[self.graspPoints[0]]
+        grasp_point_real_b = self.pcMap[self.graspPoints[1]]
+        
+        print self.map_to_real(targPoints[0], 10)
+        print self.map_to_real(targPoints[1], 10)
+        print self.map_to_real(self.graspPoints[0], 10)
+        print self.map_to_real(self.graspPoints[1], 10)
+        print "-------"
+        
+        print target_point_real_a
+        print target_point_real_b
+        print grasp_point_real_a
+        print grasp_point_real_b
         midP = (map(lambda a:a * 0.5, Vector2D.pt_diff(self.graspPoints[0], targPoints[0])))
         firstLnPt = [self.graspPoints[0][0] + midP[0], self.graspPoints[0][1] + midP[1]]
         midP = (map(lambda a:a * 0.5, Vector2D.pt_diff(self.graspPoints[1], targPoints[1])))
@@ -185,20 +196,22 @@ class CloPeMaManipulator(RobInt):
 
         return True
         
-    def checkAndReplaceNaN(self, point, xPos, xBoundary, yPos, yBoundary):
-        print "Start index : " + str([xPos, yPos])
-        xlb = int(xPos - xBoundary)
-        xrb = int(xPos + xBoundary)
-        ylb = int(yPos - yBoundary)
-        yrb = int(yPos + yBoundary)
-        it = 0
-        if(math.isnan(point[0])):
-            for x in range (xlb, xrb):
-               for y in range (ylb, yrb):
-                   it += 1
-                   point = self.pcMap[x, y]
-                   if not math.isnan(point[0]) : break
-               if not math.isnan(point[0]) : break
-        if(math.isnan(point[0])): print "Stoji to za hovno " + str(it)
-        return point
-
+    """
+    Map pixel position into 3D point, find the closest non-nan value
+    """
+    def map_to_real(self, img_point, N):
+        X, Y = np.meshgrid(np.arange(-N, N), np.arange(-N, N))
+        xyv = []
+        for (x, y), value in np.ndenumerate(X):
+            v = (X[x, y], Y[x, y])
+            xyv.append(v)
+            
+        xyv.sort(key=lambda i:(i[0] ** 2 + i[1] ** 2))
+        for v in xyv:
+            p = (img_point[0] + v[0],
+                 img_point[1] + v[1])
+            pr = self.pcMap[p]
+            if not math.isnan(pr[0]):
+                if not math.isnan(pr[1]):
+                    return pr
+        return None
