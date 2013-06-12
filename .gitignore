@@ -1,0 +1,9 @@
+*.pyc
+srv_gen/*
+build/*
+.cproject
+.project
+.pydevproject
+cmake_install.cmake
+src/contour_model_folding/*
+
