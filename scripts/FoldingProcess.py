@@ -486,9 +486,6 @@ def fit_model_to_image(model,image,iteration):
     cv.NamedWindow("Shape contocur of the observed object")
     img = cv.CloneImage(image)
     cv.PolyLine(img,[shape_contour],1,cv.CV_RGB(0,0,255),1)               
-    cv.ShowImage("Shape contour of the observed object",img)
-    cv.WaitKey()
-    cv.DestroyWindow("Shape contour of the observed object")
     #"""
 
     #Use the shaper fitter module to fit the model to image
@@ -517,7 +514,7 @@ def fit_model_to_image(model,image,iteration):
         #modelPath = "/media/Data/models/tShirt_paper_F_%0.1d.pickle" %iteration
         final_model = pickle.load(open(modelPath))
     #"""
-    #""" visualisation
+    """ visualisation
     print "/**************Test****************/"
     #im1 = cv.CloneImage(image)
     #cv.NamedWindow("Fitted model")
@@ -537,7 +534,7 @@ def fit_model_to_image(model,image,iteration):
     #cv.DestroyWindow("Fitted model")
     cv.DestroyWindow("Final model")
     print "/************EndOfTest*************/"
-    #"""
+    """
     
     show_message("FIT_MODEL_TO_IMAGE - end", MsgTypes.debug)
     return (final_model,final_model)
