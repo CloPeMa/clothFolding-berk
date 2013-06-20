@@ -68,12 +68,30 @@ class CloPeMaManipulator(RobInt):
 
         gp1 = grasp_point_real_a
         gp2 = grasp_point_real_b
+        tp1 = target_point_real_a
+        tp2 = target_point_real_b
         input_g1.p = PyKDL.Vector(gp1[0], gp1[1], gp1[2])
-        input_g1.M = PyKDL.Rotation().RPY(math.pi / 2, 0, math.pi / 5)
+        z_ = PyKDL.Vector(tp1[0] - gp1[0], tp1[1] - gp1[1], tp1[2] - gp1[2])
+        z_.Normalize()
+        z = PyKDL.Vector(0, 0, 1)
+        v = z_ * z
+        v.Normalize()
+        angle = math.acos(PyKDL.dot(z_, z))
+        input_g1.M = PyKDL.Rotation.Rot(v, -angle)
+        
         input_g2.p = PyKDL.Vector(gp2[0], gp2[1], gp2[2])
-        input_g2.M = PyKDL.Rotation().RPY(math.pi / 2, 0, -math.pi / 5)
+        z_ = PyKDL.Vector(tp2[0] - gp2[0], tp2[1] - gp2[1], tp2[2] - gp2[2])
+        z_.Normalize()
+        z = PyKDL.Vector(0, 0, 1)
+        v = z_ * z
+        v.Normalize()
+        angle = math.acos(PyKDL.dot(z_, z))
+        input_g2.M = PyKDL.Rotation.Rot(v, -angle)
+        
         input_p1.p = PyKDL.Vector(line_a[0], line_a[1], line_a[2])
         input_p2.p = PyKDL.Vector(line_b[0], line_b[1], line_b[2])
+        input_p1.M = PyKDL.Rotation.Identity()
+        input_p2.M = PyKDL.Rotation.Identity()
 
         tmp_pose = PoseStamped()
         tmp_pose.header.frame_id = input_frame
@@ -108,14 +126,14 @@ class CloPeMaManipulator(RobInt):
         br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'P2' , sm.userdata.g1.header.frame_id)
         """
         
-        raw_input("Enter to continue")
-        """
+        
+        
         sm_go_home = gensm_plan_vis_exec(PlanToHomeState(), output_keys=['trajectory']);
         with sm:
-            smach.Sequence.add('GFOLD_FINAL', GFold2State(True, True, table_offset, 0.01))
+            smach.Sequence.add('GFOLD', GFold2State(True, True, table_offset, 0.01))
 
         outcome = sm.execute()
-"""
+        raw_input("Enter to continue")
         #raw_input("Hit key to continue")
 
     ##  Load an image grabed by a camera.
