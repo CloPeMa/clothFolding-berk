@@ -112,8 +112,10 @@ class CloPeMaManipulator(RobInt):
         sm.userdata.rotation_angle_1 = 0
         sm.userdata.rotation_angle_2 = 0
         table_offset = 0.075
+        sm.userdata.grasp_angle_allowed1 = math.pi / 2
+        sm.userdata.grasp_angle_allowed2 = math.pi / 2
         
-        """
+        
         br = tf.TransformBroadcaster()
         rospy.sleep(1.0)
         tmp = posemath.fromMsg(sm.userdata.g1.pose)
@@ -124,13 +126,13 @@ class CloPeMaManipulator(RobInt):
         br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'P1' , sm.userdata.g1.header.frame_id)
         tmp = posemath.fromMsg(sm.userdata.p2.pose)
         br.sendTransform(tmp.p, tmp.M.GetQuaternion() , rospy.Time.now(), 'P2' , sm.userdata.g1.header.frame_id)
-        """
         
         
         
-        sm_go_home = gensm_plan_vis_exec(PlanToHomeState(), output_keys=['trajectory']);
+        
+        sm_go_home = gensm_plan_vis_exec(PlanToHomeState(), output_keys=['trajectory'])
         with sm:
-            smach.Sequence.add('GFOLD', GFold2State(True, True, table_offset, 0.01))
+            smach.Sequence.add('GFOLD', GFold2RobustState(True, True, table_offset, 0.01))
 
         outcome = sm.execute()
         raw_input("Enter to continue")
