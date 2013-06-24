@@ -13,7 +13,7 @@
 class RobInt:
     
     # manipulation stuff
-    def liftUp(self, liftPoint):
+    def liftUp(self, liftPoint, approach_angles = None):
         abstract
     def place(self, targPoints):
         abstract

@@ -26,7 +26,7 @@ class HumanManipulator(RobInt):
 
     lastImageIndex = 0
       
-    def liftUp(self, liftPoints):
+    def liftUp(self, liftPoints, approach_angles = None):
         print "Grasp and lift up following points:"
         if(liftPoints == None):
             print "Some of the grasp points wasn't set."

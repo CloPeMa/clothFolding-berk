@@ -44,7 +44,7 @@ class CloPeMaManipulator(RobInt):
     x_border = 0
     y_border = 0
 
-    def liftUp(self, liftPoints):
+    def liftUp(self, liftPoints, approach_angles = None):
         self.graspPoints = liftPoints
 
     def place(self, targPoints):

@@ -30,6 +30,7 @@ from shape_window.ShapeWindow import *
 from shape_window import ShapeWindowUtils
 from shape_window import Geometry2D
 from visual_feedback_utils import Vector2D, thresholding, shape_fitting
+from visual_feedback_utils.polygon_utils import polygon_sector
 from sensor_msgs.msg import Image
 from contour_model_folding.srv import *
 from cv_bridge import CvBridge, CvBridgeError
@@ -213,11 +214,13 @@ def execute_fold(model,foldedModel,foldLine,robDev):
     gps = get_grasp_points(model,foldedModel,foldLine)
     if( gps == None):
         return FoldResults.noGraspedPoints
+    # Compute approach angle and max deviation from it for each point
+    angles = map(lambda x: polygon_sector(model.polygon_vertices, x), gps)
     # deffine a new positin of that points
     #raw_input("before getNewPositionOfGraspPoints...")
     np_gps = get_new_grasp_points_position(gps,foldLine)
     # grasp the points and lift them up
-    robDev.liftUp(gps)
+    robDev.liftUp(gps, angles)
     # move the grasped points to the defined position and ungrasp
     robDev.place(np_gps)
     return FoldResults.succesfull
