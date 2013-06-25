@@ -215,7 +215,7 @@ def execute_fold(model,foldedModel,foldLine,robDev):
     if( gps == None):
         return FoldResults.noGraspedPoints
     # Compute approach angle and max deviation from it for each point
-    angles = map(lambda x: polygon_sector(model.polygon_vertices, x), gps)
+    angles = map(lambda x: polygon_sector(model.polygon_vertices(), x), gps)
     # deffine a new positin of that points
     #raw_input("before getNewPositionOfGraspPoints...")
     np_gps = get_new_grasp_points_position(gps,foldLine)
