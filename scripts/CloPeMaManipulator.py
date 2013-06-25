@@ -32,6 +32,8 @@ from smach import State
 # includes for pointcloud manipulation
 from sensor_msgs.msg        import PointCloud2, PointField
 from python_msg_conversions import pointclouds
+from clopema_planning_actions.msg._MA1400JointState import MA1400JointState
+from clopema_smach.utility_states import PauseState
 
 class CloPeMaManipulator(RobInt):  
 
@@ -44,8 +46,9 @@ class CloPeMaManipulator(RobInt):
     x_border = 0
     y_border = 0
 
-    def liftUp(self, liftPoints, approach_angles = None):
+    def liftUp(self, liftPoints, approach_angles=None):
         self.graspPoints = liftPoints
+        self.approach_angles = approach_angles
 
     def place(self, targPoints):
         N = 10
@@ -59,7 +62,7 @@ class CloPeMaManipulator(RobInt):
         diff_b = grasp_point_real_b - target_point_real_b
         line_b = (map(lambda a:a * 0.5, diff_b)) + target_point_real_b
         
-        sm = smach.Sequence(outcomes=['succeeded', 'preempted', 'aborted'], connector_outcome='succeeded')
+        sm = smach.StateMachine(outcomes=['succeeded', 'preempted', 'aborted'])
         input_frame = self.pc_frame_id
         input_g1 = PyKDL.Frame()
         input_g2 = PyKDL.Frame()
@@ -68,8 +71,24 @@ class CloPeMaManipulator(RobInt):
 
         gp1 = grasp_point_real_a
         gp2 = grasp_point_real_b
-        tp1 = target_point_real_a
-        tp2 = target_point_real_b
+        
+        Rz = PyKDL.Rotation().Identity()
+        Rz.DoRotZ(self.approach_angles[0][0])
+        kdl_grasp = PyKDL.Vector(self.graspPoints[0][0], self.graspPoints[0][1], 0)
+        kdl_v = PyKDL.Vector(20, 0, 0) #units are pixels
+        kdl_v = Rz * kdl_v
+        v = (kdl_v[0], kdl_v[1])
+        tp1 = self.map_to_real(kdl_v, N) - gp1
+        
+        Rz = PyKDL.Rotation().Identity()
+        Rz.DoRotZ(self.approach_angles[1][0])
+        kdl_grasp = PyKDL.Vector(self.graspPoints[1][0], self.graspPoints[1][1], 0)
+        kdl_v = PyKDL.Vector(20, 0, 0) #units are pixels
+        kdl_v = Rz * kdl_v
+        v = (kdl_v[0], kdl_v[1])
+        tp2 = self.map_to_real(kdl_v, N) - gp2
+        #tp1 = target_point_real_a
+        #tp2 = target_point_real_b
         input_g1.p = PyKDL.Vector(gp1[0], gp1[1], gp1[2])
         z_ = PyKDL.Vector(tp1[0] - gp1[0], tp1[1] - gp1[1], tp1[2] - gp1[2])
         z_.Normalize()
@@ -103,17 +122,24 @@ class CloPeMaManipulator(RobInt):
         sm.userdata.p1 = copy.deepcopy(tmp_pose)
         tmp_pose.pose = posemath.toMsg(input_p2)
         sm.userdata.p2 = copy.deepcopy(tmp_pose)
+        
+        tmp_pose.pose = posemath.toMsg(input_g1)
+        sm.userdata.g1_r = copy.deepcopy(tmp_pose)
+        tmp_pose.pose = posemath.toMsg(input_g2)
+        sm.userdata.g2_r = copy.deepcopy(tmp_pose)
 
         sm.userdata.ik_link_1 = 'r1_ee'
         sm.userdata.ik_link_2 = 'r2_ee'
+        sm.userdata.ik_link_1_r = 'r2_ee'
+        sm.userdata.ik_link_2_r = 'r1_ee'
         sm.userdata.table_id = 't2'
-        sm.userdata.offset_plus = 0.00
-        sm.userdata.offset_minus = 0.1
+        sm.userdata.offset_plus = 0.02
+        sm.userdata.offset_minus = 0.02
         sm.userdata.rotation_angle_1 = 0
         sm.userdata.rotation_angle_2 = 0
         table_offset = 0.075
-        sm.userdata.grasp_angle_allowed1 = math.pi / 2
-        sm.userdata.grasp_angle_allowed2 = math.pi / 2
+        sm.userdata.grasp_angle_allowed1 = self.approach_angles[0][1] * 0.9
+        sm.userdata.grasp_angle_allowed2 = self.approach_angles[1][1] * 0.9
         
         
         br = tf.TransformBroadcaster()
@@ -129,10 +155,12 @@ class CloPeMaManipulator(RobInt):
         
         
         
-        
         sm_go_home = gensm_plan_vis_exec(PlanToHomeState(), output_keys=['trajectory'])
         with sm:
-            smach.Sequence.add('GFOLD', GFold2RobustState(True, True, table_offset, 0.01))
+            smach.StateMachine.add('GFOLD_REVERT', GFold2RobustState(True, True, table_offset, 0.01),
+                                   remapping={'ik_link_1':'ik_link_1_r', 'ik_link_2':'ik_link_2_r', 'g1':'g1_r', 'g2':'g2_r'},
+                               transitions={'aborted':'GFOLD', 'succeeded':'succeeded'})
+            smach.StateMachine.add('GFOLD', GFold2RobustState(True, True, table_offset, 0.01))
 
         outcome = sm.execute()
         raw_input("Enter to continue")
@@ -143,6 +171,24 @@ class CloPeMaManipulator(RobInt):
     #   @param index The index of image to be loaded
     #   @return The image loaded from a file        
     def getImageOfObsObject(self, index):
+        #Move to the grabbing position
+        sm = smach.Sequence(outcomes=['succeeded', 'preempted', 'aborted'], connector_outcome='succeeded')
+        sm.userdata.goal_r1 = MA1400JointState()
+        sm.userdata.goal_r2 = MA1400JointState()
+        sm.userdata.goal_r2.s = -0.30
+        sm.userdata.goal_r2.l = 0.30
+        sm.userdata.goal_r2.u = -0.14
+        sm.userdata.goal_r2.r = 0.00
+        sm.userdata.goal_r2.b = 0.33
+        sm.userdata.goal_r2.t = 0.00
+        sm_go_home = gensm_plan_vis_exec(Plan2ToJointsState(), servo_off=True, input_keys=['goal_r1', 'goal_r2'])
+        with sm:
+            smach.StateMachine.add('GO_HOME', sm_go_home)
+            smach.StateMachine.add('PAUSE', PauseState(2))
+            smach.StateMachine.add('CLOSE_GRIPPERS', gensm_grippers(False, False))
+
+        outcome = sm.execute()
+        
         takenImage = None
         self.lastImageIndex = index
         logging.info("Get image - waiting for msg")
